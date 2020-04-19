@@ -80,7 +80,7 @@ jobs:
         OPENEDX_RELEASE=${{ matrix.openedx-release }} docker-compose -f .github/docker-compose-github.yml up -d
     - name: Install requirements
       run: |
-        docker exec -t discovery bash -c 'sed -i "s|http://archive|http://us.archive|g" /etc/apt/sources.list
+        docker exec -t discovery bash -c 'sed -i "s|http://archive|http://us.archive|g" /etc/apt/sources.list'
         docker exec -t discovery bash -c 'apt update && apt install -y --no-install-recommends firefox gettext'
         docker exec -t discovery bash -c 'sed -i "s/course_discovery.settings.devstack/course_discovery.settings.test/" /edx/app/discovery/discovery_env'
         docker exec -e TOXENV=${{ matrix.TOXENV }} -t discovery bash -c 'source /edx/app/discovery/discovery_env && cd /edx/app/discovery/discovery/ && make requirements'
