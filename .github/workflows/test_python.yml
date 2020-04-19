@@ -1,0 +1,112 @@
+name: Django CI
+
+on:
+  push:
+    branches: [ 'develop', 'master', 'release-candidate', 'danial/add-unit-tests-github-actions' ]
+  pull_request:
+    branches: [ 'develop', 'master', 'release-candidate', 'danial/add-unit-tests-github-actions' ]
+
+jobs:
+
+  quality-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: [2.7]
+        openedx-release: ['ironwood.master']
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup docker containers
+        run: |
+          OPENEDX_RELEASE=${{ matrix.openedx-release }} docker-compose -f .github/docker-compose-github.yml up -d
+      - name: Install requirements
+        run: |
+          docker exec -t discovery bash -c '
+            sed -i "s/course_discovery.settings.devstack/course_discovery.settings.test/" /edx/app/discovery/discovery_env'
+          docker exec -t discovery bash -c '
+            source /edx/app/discovery/discovery_env &&
+            cd /edx/app/discovery/discovery/ &&
+            make requirements'
+
+      - name: Run 'make docs'
+        if: always()
+        run: |
+          docker exec -t discovery bash -c '
+            source /edx/app/discovery/discovery_env &&
+            cd /edx/app/discovery/discovery/ &&
+            make docs'
+      - name: Run 'make clean_static'
+        if: always()
+        run: |
+          docker exec -t discovery bash -c '
+            source /edx/app/discovery/discovery_env &&
+            cd /edx/app/discovery/discovery/ &&
+            make clean_static'
+      - name: Run 'make static'
+        if: always()
+        run: |
+          docker exec -t discovery bash -c '
+            source /edx/app/discovery/discovery_env &&
+            cd /edx/app/discovery/discovery/ &&
+            make static'
+      - name: Test quality
+        if: always()
+        run: |
+          docker exec -t discovery bash -c '
+            source /edx/app/discovery/discovery_env &&
+            cd /edx/app/discovery/discovery/ &&
+            make quality'
+      - name: Check keywords
+        if: always()
+        run: |
+          docker exec -t discovery bash -c '
+            source /edx/app/discovery/discovery_env &&
+            cd /edx/app/discovery/discovery/ &&
+            make check_keywords'
+
+  python-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: [2.7]
+        openedx-release: ['ironwood.master']
+        TOXENV: ['django11']
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup docker containers
+      run: |
+        OPENEDX_RELEASE=${{ matrix.openedx-release }} docker-compose -f .github/docker-compose-github.yml up -d
+    - name: Install requirements
+      run: |
+        docker exec -t discovery bash -c 'sed -i "s|http://archive|http://us.archive|g" /etc/apt/sources.list
+        docker exec -t discovery bash -c 'apt update && apt install -y --no-install-recommends firefox gettext'
+        docker exec -t discovery bash -c 'sed -i "s/course_discovery.settings.devstack/course_discovery.settings.test/" /edx/app/discovery/discovery_env'
+        docker exec -e TOXENV=${{ TOXENV }} -t discovery bash -c 'source /edx/app/discovery/discovery_env && cd /edx/app/discovery/discovery/ && make requirements'
+    - name: Run 'make clean_static'
+      run: |
+        docker exec -t discovery bash -c '
+          source /edx/app/discovery/discovery_env &&
+          cd /edx/app/discovery/discovery/ &&
+          make clean_static'
+    - name: Run 'make static'
+      run: |
+        docker exec -t discovery bash -c '
+          source /edx/app/discovery/discovery_env &&
+          cd /edx/app/discovery/discovery/ &&
+          make static'
+    - name: Run the python tests
+      run: |
+        docker exec -e TOXENV=${{TOXENV}} -t discovery bash -c '
+          source /edx/app/discovery/discovery_env &&
+          cd /edx/app/discovery/discovery/ &&
+          make test'
+    - name: Run coverage
+      run: |
+        pip install -U codecov
+        docker exec -t discovery bash -c '
+          source /edx/app/discovery/discovery_env &&
+          cd /edx/app/discovery/discovery/ &&
+          coverage xml'
+        codecov
