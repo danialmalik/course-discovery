@@ -96,11 +96,3 @@ jobs:
           cd /edx/app/discovery/discovery/ &&
           pip install pytest==3.10.1 &&
           make test'
-    - name: Run coverage
-      run: |
-        pip install -U codecov
-        docker exec -t discovery bash -c '
-          source /edx/app/discovery/discovery_env &&
-          cd /edx/app/discovery/discovery/ &&
-          coverage xml'
-        codecov
