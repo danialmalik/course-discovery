@@ -57,13 +57,6 @@ jobs:
             source /edx/app/discovery/discovery_env &&
             cd /edx/app/discovery/discovery/ &&
             make quality'
-      - name: Check keywords
-        if: always()
-        run: |
-          docker exec -t discovery bash -c '
-            source /edx/app/discovery/discovery_env &&
-            cd /edx/app/discovery/discovery/ &&
-            make check_keywords'
 
   python-tests:
     runs-on: ubuntu-latest
@@ -72,7 +65,7 @@ jobs:
       matrix:
         python-version: [2.7]
         openedx-release: ['ironwood.master']
-        TOXENV: ['django11']
+        TOXENV: ['django111']
     steps:
     - uses: actions/checkout@v2
     - name: Setup docker containers
